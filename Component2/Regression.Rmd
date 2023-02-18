@@ -1,0 +1,172 @@
+---
+title: "Regression"
+author: "Ruben Mathew"
+date: "2023-02-14"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  pdf_document:
+    toc: yes
+---
+
+## What is Linear Regression?
+
+Linear Regression is a technique used to find a relationship between two variables. It tries to find a line of best fit which properly describes the relationship. It tries to find a linear relationship which means it is highly biased and tends to underfit the data. However if the relationship is somewhat linear it can provide a good insight into the strength of the correlation between the two variables.
+
+## Set up
+
+Here we reset the environment so that we have a clean slate to work with. We load in the diamonds.csv file. The data was found [here](https://www.kaggle.com/datasets/shivam2503/diamonds) on Kaggle.
+
+```{r Setup}
+rm(list = ls()) # Reset Environment
+df <- read.csv("diamonds.csv")
+df$cut <- factor(df$cut, levels = c("Fair", "Good", "Very Good", "Premium", "Ideal"))
+```
+
+## Separate out Training and Test Data
+
+Here we partition the data into training and test data. We do this to more accurately assess the model and how well it fits to data it hasn't seen before.
+
+```{r Partition Data}
+set.seed(31415)
+i <- sample(1:nrow(df), .8*nrow(df), replace=FALSE)
+train <- df[i,]
+test <- df[-i,]
+```
+
+## Data Exploration on Training Data
+
+Here we use a few of R's built-in functions to "explore" the data. The head and tail functions show us a few rows from the front and back of the training data (just to see what a few rows look like). The dim and str functions give us some more information on the structure of the data (dimensions and column names/types). Finally the summary function gives us a summary of the data by column (shows min/max, mean, median, etc.). We also use a couple of functions to graph out the relationships between a few of the different columns.
+
+```{r Data Exploration}
+# 5 Functions
+head(train)
+tail(train)
+dim(train)
+str(train)
+summary(train)
+
+# 2 Graphs
+plot(train$carat, train$price, xlab="Carat", ylab="Price")
+pairs(train[,c(2,6,8,9,10,11)]) # carat, depth %, price, x(length), y(width), z(depth)
+```
+
+## Train Model and Predict
+
+Here we train the model using the training data. We can make a summary of this model and see then use the built-in predict function to calculate other statistics such as correlation, mean squared error and root mean squared error.
+
+```{r Train Simple Model}
+lm1 <- lm(price~carat, data=train)
+
+summary(lm1)
+pred1 <- predict(lm1, newdata=test)
+
+correlation1 <- cor(pred1, test$carat)
+mse1 <- mean((pred1 - test$carat)^2)
+rmse1 <- sqrt(mse1)
+
+print(paste("correlation: ", correlation1))
+print(paste("mse: ", mse1))
+print(paste("rmse: ", rmse1))
+```
+
+This summary gives us good information on the correlation between carat and price. For instance since R-Square is about 0.847, we can assume that these are strongly positively correlated meaning if the carat value goes up, so does price (this does make sense logically). A more interesting statistic is the given slope, which we can assume is a good estimation due to the low p-value. This means that according to our model, for every 1 carat increase, the diamond's price goes up \$7748.88.
+
+## Plotting Residuals
+
+By using R's built in plot function, we can get 4 different visual representations that tell us information on this data set.
+
+```{r Plot Residuals}
+par(mfrow=c(2,2))
+plot(lm1)
+
+plot(test$carat,test$price,xlab="Carat", ylab="Price")
+abline(lm1, col='red')
+```
+
+#### Residuals vs Fitted
+
+This plot shows us that our model for the most part does capture most of the variation in the data since the red line is almost horizontal. We can see however its a little shakier with the higher numbers. This makes sense due to the less data provided for those higher values.
+
+#### Normal Q-Q
+
+This plot shows us that our residuals are pretty normally distributed, due to the almost straight diagonal line plotted.
+
+#### Scale-Location
+
+This plot shows us that our data is not homoscedastic because the red line is more diagonal than horizontal
+
+#### Residuals vs Leverage
+
+This plot shows us there are definitely outliers that affects the model such as observation 27631
+
+## Multiple Linear Regression
+
+Here is another regression model using an extra predictor of the type of cut. This is a factor of 5 different types (Fair, Good, Very Good, Premium, Ideal) describing the quality of the cut.
+
+```{r Mutiple Regression Model}
+lm2 <- lm(price~carat+cut, data=train)
+
+summary(lm2)
+pred2 <- predict(lm2, newdata=test)
+
+correlation2 <- cor(pred2, test$carat)
+mse2 <- mean((pred2 - test$carat)^2)
+rmse2 <- sqrt(mse2)
+
+print(paste("correlation: ", correlation2))
+print(paste("mse: ", mse2))
+print(paste("rmse: ", rmse2))
+
+par(mfrow=c(2,2))
+plot(lm2)
+
+plot(test$carat,test$price,xlab="Carat", ylab="Price")
+abline(lm2, col='red')
+plot(test$cut, test$price)
+
+```
+
+We can see that this is a slight improvement in the model because, R-squared increased to .855 while still maintaining a low p-value. We also get some insight to how the cut may affect price in consideration with carat.
+
+## Improved Linear Regression Model
+
+In an attempt to improve the model, we can try using polynomial regression here. This tries to fit the relationship to a less straight line in order to account for other factors.
+
+```{r Polynomial Linear Regression Model}
+plot(test$carat, test$price, xlab="Carat", ylab="Price", las = 1, xlim = c(0, 5))
+d <- seq(0, 5, length.out = 200)
+for(degree in 1:4) {
+  fm <- lm(price ~ poly(carat, degree), data = train)
+  assign(paste("diamonds", degree, sep = "."), fm)
+  lines(d, predict(fm, data.frame(carat = d)), col = degree)
+}
+
+anova(diamonds.1, diamonds.2, diamonds.3, diamonds.4)
+
+par(mfrow=c(2,2))
+
+```
+
+In this case we can see that the Polynomial model is not a better model for predicting the data. However we can see some interesting functions used for prediction, though with higher degrees, it seems to try to overfit the data with the outliers.
+
+## Results
+
+From our models, it seems like the multiple linear regression model is the best for the dataset. It has a higher R-squared value and seems more accurate according to the residuals. It also has low mse/rmse and a close to 1 correlation. This makes sense because a simple linear regression does not take into account other factors like cut, but the polynomial regression overfits the data due to the higher amount of outliers and variance in values.
+
+```{r Results}
+
+print(paste("model 1 correlation: ", correlation1))
+print(paste("model 1 mse: ", mse1))
+print(paste("model 1 rmse: ", rmse1))
+
+print(paste("model 2 correlation: ", correlation2))
+print(paste("model 2 mse: ", mse2))
+print(paste("model 2 rmse: ", rmse2))
+
+anova(lm1, lm2)
+
+```
+
+The correlation of model 1 is 1, and the correlation of model 2 is 0.998. The reason there is a slight dip in correlation for model 2 is because it is not completely based on just carat and price. But this does not lower the correlation enough to say the model is inaccurate.

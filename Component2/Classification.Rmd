@@ -1,0 +1,157 @@
+---
+title: "Classification"
+author: "Ruben Mathew"
+date: "2023-02-18"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  pdf_document:
+    toc: yes
+---
+
+## What is Logistic Regression?
+
+Logistic Regression is a technique used to define a relationship to classify different values. It really should be called Classification rather than regression. It allows us to approximate a "decision boundary" that can show us visually whether something belongs to one class or another (based on qualitative data rather than quantitative). Just like Linear Regression, Logistic Regression is highly biased as it usually tries to create this decision boundary based on a straight line.
+
+## Set up
+
+Here we reset the environment so that we have a clean slate to work with. We load in the income.csv file. The data was found [here](https://www.kaggle.com/datasets/wenruliu/adult-income-dataset) on Kaggle.
+
+```{r Setup}
+rm(list = ls()) # Reset Environment
+df <- read.csv("income.csv")
+df[df == "?"] <- NA
+df <- df[complete.cases(df), ]
+df$income <- factor(df$income)
+```
+
+## Separate out Training and Test Data
+
+Here we partition the data into training and test data. We do this to more accurately assess the model and how well it fits to data it hasn't seen before.
+
+```{r Partition Data}
+set.seed(4829)
+i <- sample(1:nrow(df), .8*nrow(df), replace=FALSE)
+train <- df[i,]
+test <- df[-i,]
+
+```
+
+## Data Exploration on Training Data
+
+Here we use a few of R's built-in functions to "explore" the data. The head and tail functions show us a few rows from the front and back of the training data (just to see what a few rows look like). The dim and str functions give us some more information on the structure of the data (dimensions and column names/types). Finally the summary function gives us a summary of the data by column (shows min/max, mean, median, etc.). We also use a couple of functions to graph out the relationships between a few of the different columns.
+
+```{r Data Exploration}
+# 5 Functions
+head(train)
+tail(train)
+dim(train)
+str(train)
+summary(train)
+
+
+# 3 Graph functions
+par(mfrow=c(1,2))
+cdplot(train$income~train$educational.num, xlab="Education Number", ylab="Probability of Income")
+cdplot(train$income~train$hours.per.week, xlab="Hours per Week", ylab="Probability of Income")
+
+pairs(train[,c("educational.num", "hours.per.week", "age")])
+```
+
+## Train Model and Predict
+
+Here we train the model using the training data. We can make a summary of this model and see then use the built-in predict function to calculate other statistics such as accuracy, and even generate a confusion matrix for the model
+
+```{r Train Logistic Regression Model}
+glm1 <- glm(income~educational.num, data=train, family=binomial)
+
+summary(glm1)
+
+
+pred1 <- predict(glm1, newdata=test, type="response")
+probs <- ifelse(pred1>0.5, 2, 1)
+acc1 <- mean(probs==as.integer(test$income))
+print(paste("glm1 accuracy = ", acc1))
+table(probs, as.integer(test$income))
+
+```
+
+This summary gives us good information on the effect education has on income. In the case of Logistic Regression the estimated slope coefficient found, shows difference of log odds of the target in reference to the independent. In our case, this shows a positive change in log odds for an increase in education. We can also see our Residual Deviance is lower than the Null Deviance which shows a better fit. The accuracy is approximated to 0.779 which is fairly good. But as the confusion matrix below the summary shows us, the amount of observations in the >50K class, is more likely to be incorrectly classified compared to the <=50K class. This makes sense since there is less data on the >50K class and the dataset is imbalanced. 
+
+## Naive Bayes Model
+
+Naive Bayes Model is another type of Classification model. It allows you to see a few different probabilities based on the concept of likelihood. Here we can train the model and get some idea of how some factors affect the likelihood of an observation being in one class or the other.
+
+```{r Train Naive Bayes Model}
+library(e1071)
+nb1 <- naiveBayes(income~., data=train)
+
+nb1
+
+pred2 <- predict(nb1, newdata=test, type="class")
+table(pred2, test$income)
+mean(pred2==test$income)
+```
+
+From this output we can see that the accuracy is estimated to be 0.829 which is pretty good. We can also see via the confusion matrix, that it is a bit better at accurately classifying >50K observations than the logistic regression model from earlier. But whats nice about the Naive Bayes model is we can also look at the probability tables and see some interesting results. Like if you make >50K, you are much more likely to be married, than someone <=50K. Another thing the model found was if you make >50K, there is about a 28.3% chance your highest level of education is a bachelors, but if you make <=50K that chance drops down to 12.9%. These percentages won't be completely accurate to the population (that's just the nature of samples) but with a large enough amount of data, we can make some good predictions.
+
+## Compare and Contrast Metrics
+
+#### Accuracy
+
+In the Logistic Regression (LR) model, we see that the estimated accuracy is 0.779, compared to the Naive Bayes (NB) model which was estimated at 0.829. This is an indicator that the features of the data might be more independent from each other, since NB assumes this and has a higher bias towards it. 
+
+#### Sensitivity and Specificity
+
+LR Sensitivity - 0.958
+LR Specificity - 0.217
+NB Sensitivity - 0.932
+NB Specificity - 0.507
+
+This shows that while the LR and NB models are fairly accurate, and similar in how they classify <=50K observations, they are both fairly inaccurate in classifying >50K, with NB being the much better option. This inaccuracy can be the result of having much less data on >50k observations than <=50K ones. With an imbalanced dataset like this, NB's assumption of independence can result in a higher specificity.
+
+#### Kappa
+
+```{r Kappa Calculation}
+library(caret)
+
+confusionMatrix(pred2, test$income)
+#confusionMatrix(as.factor(probs), test$income) #Couldn't figure out how to make it work
+```
+Kappa value for LR - 
+Kappa value for NB - 0.486
+
+Since the kappa for NB model is between 0.4 and 0.6, we can assume a moderate agreement. I was unable to figure out how to convert the predict vector back to a factor to do this for the LR model.
+
+
+#### ROC and AUC
+
+```{r ROC & AUC}
+library(ROCR)
+# TPR = sensitivity, FPR=specificity
+
+lnPR <- prediction(pred1, test$income)
+prf <- performance(lnPR, measure = "tpr", x.measure = "fpr")
+plot(prf)
+# compute AUC
+auc <- performance(lnPR, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+```
+
+AUC LN- 0.716
+
+Since the AUC is 0.716, it is pretty good at classifying the positive observations over the negative ones. With the ROC graph, you notice the gentle incline vs the immediate shoot upwards that we would want to see. This shows a somewhat lack of predictive power.
+
+## Comparison of Models
+
+LR and NB are both good models for classification. LR is pretty good because it doesn't make assumptions on the data like NB (which assumes that the features are independent). However it tends to overfit data. NB on the other hand, is simple and requires less data than LR. However NB has that biased independance assumption which can lead it astray.
+
+## Comparison of Metrics
+
+Accuracy and Kappa values are both good indicators of how good the model is at classifying the data. Kappa tries to improve on accuracy by trying to negate the chance that the model could have just randomly gotten the value correct.
+
+Sensitivity and Specificity are good at showing whether the model may be better at classifying one type than the other, or might be biased towards one of the classes.
+
