@@ -16,3 +16,7 @@ In this project I created a couple of notebooks in R to test out some statistica
 ## [Project 3](Component3/):
 
 In this project I created two C++ files recreating some regression functions manually. One file contains [logistic regression](Component3/logistic.cpp) functions and the other file contains [Naive Bayes](Component3/bayes.cpp) functions. The used csv file is also included as well as some documentation talking about the functions and the importance of reproducibile research.
+
+## [Project 4](Component4/):
+
+This project was a group project where we each created a notebook in R to show the power of different models using R. My [notebook](Component4/Part%202.Rmd) was based on different classification models such as Logistic Regression (previously explored), K-Nearest Neighbors, and Decision Trees. The used csv file is also included as well as a pdf version of the notebook.

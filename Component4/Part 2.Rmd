@@ -1,0 +1,149 @@
+---
+title: 'Notebook 2: Classification'
+author: "Ruben Mathew"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+## Intro
+
+In this notebook we look at a few different classification methods and how they can yield different levels of accuracy. The data we use is [housing information](https://www.kaggle.com/datasets/syuzai/perth-house-prices) from Perth, Australia.
+
+## Set-up
+
+We start by resetting the environment and reading in the Perth housing information via a csv file. We clean up the data a bit by fixing the 'NULL' values to their correct counterparts, and including only complete cases, reducing the amount of observations from 33656 to 20692 (still a sizeable amount).
+
+```{r Setup}
+rm(list = ls()) # Reset Environment
+df <- read.csv("perth.csv")
+df$GARAGE[df$GARAGE == 'NULL'] <- 0
+df$GARAGE <- as.integer(df$GARAGE)
+df$BUILD_YEAR[df$BUILD_YEAR == 'NULL'] <- NA
+df <- df[complete.cases(df), ]
+df$SUBURB <- factor(df$SUBURB)
+```
+
+## Train/Test Partitions
+
+Next we separate the data into train and test partitions (80/20) in order to make our models. This leads to a test set of approx 4.1k observations and train set of approx 16.5k observations.
+
+```{r Partition Data}
+set.seed(4829)
+i <- sample(1:nrow(df), .8*nrow(df), replace=FALSE)
+train <- df[i,]
+test <- df[-i,]
+```
+
+## Data Exploration
+
+Now we run some data exploration methods and techniques on the train data. This will allow us to be more familiar with content, range, and expected values of each feature and get an idea of what might be an interesting model to create.
+
+```{r Data Exploration}
+str(train)
+summary(train)
+
+boxplot(train$LAND_AREA)
+
+cdplot(factor(ifelse(train$PRICE>=mean(df$PRICE), "high", "low"))~train$FLOOR_AREA, xlab="Floor Area", ylab="Price")
+
+plot(train$FLOOR_AREA~train$PRICE)
+
+```
+
+Originally I had wanted to use LAND_AREA, the room counts, and position to predict the price (specifically if it was above or below average). However, via the data exploration, I was able to determine that LAND_AREA had many outliers and it would be difficult to get good information out of it, so as a substitute, we can use FLOOR_AREA.
+
+## Logistic Regression
+
+Here we train the model with the training data using regular Logistic Regression. We can make a summary of this model and check the accuracy of it to compare with other models.
+
+```{r Train Logistic Regression Model}
+glm1 <- glm(factor(ifelse(train$PRICE>=mean(train$PRICE), "high", "low"))~FLOOR_AREA+BEDROOMS+BATHROOMS+GARAGE+LONGITUDE+LATITUDE, data=train, family=binomial)
+
+summary(glm1)
+
+pred1 <- predict(glm1, newdata=test, type="response")
+probs <- ifelse(pred1>0.5, 1, 0)
+acc1 <- mean(probs==as.integer(factor(ifelse(test$PRICE>=mean(test$PRICE), "high", "low"))))
+print(paste("glm1 accuracy = ", acc1))
+
+```
+
+We see that with our logistic model, using not only the the floor area, but also the amount of primary rooms (bedrooms, bathrooms, garages), and location (longitude and latitude), only has an accuracy of 15.7% when estimating price. The model also seems to think Latitude is not a good predictor.
+
+## kNN Classification
+
+Here we use kNN (k Nearest Neighbors) as a different model using the same predictors to see if we can get something more accurate.
+
+```{r kNN Model}
+kNN.train <- data.frame(matrix(ncol = 6, nrow = nrow(train)))
+kNN.test <- data.frame(matrix(ncol = 6, nrow = nrow(test)))
+
+library(class)
+for(column in 4:7){
+  kNN.train[, column-3] <- train[, column]
+  kNN.test[, column-3] <- test[, column]
+}
+
+for(column in 15:16){
+  kNN.train[, column-10] <- train[, column]
+  kNN.test[, column-10] <- test[, column]
+}
+
+# normalize data
+means <- sapply(kNN.train, mean)
+stdvs <- sapply(kNN.train, sd)
+kNN.train <- scale(kNN.train, center=means, scale=stdvs)
+kNN.test <- scale(kNN.test, center=means, scale=stdvs)
+
+train.labels <- as.factor(ifelse(train$PRICE>=mean(train$PRICE), "high", "low"))
+test.labels <- as.factor(ifelse(test$PRICE>=mean(test$PRICE), "high", "low"))
+
+pred2 <- knn(train=kNN.train, test=kNN.test, cl=train.labels, k=10)
+
+results <- pred2 == test.labels
+acc2 <- length(which(results == TRUE)) / length(results)
+print(paste("kNN accuracy = ", acc2))
+```
+
+After testing the data at a few different values of k (3-15), and the accuracy seems to fall at about a range of 85-87% which is already much more accurate than the logistic model. This is due to the high variance of the model, allowing it to fit to the data more.
+
+## Decision Tree
+
+Now we use a decision tree model which may have a bit lower accuracy but should be more transparent as to what the predictors are being used for.
+
+```{r Decision Tree Model}
+library(tree)
+#perth.tree <- tree(factor(ifelse(PRICE>=mean(PRICE), "high", "low"))~FLOOR_AREA+BEDROOMS+BATHROOMS+GARAGE, data=train, method="class")
+perth.tree <- tree(factor(ifelse(PRICE>=mean(PRICE), "high", "low"))~FLOOR_AREA+BEDROOMS+BATHROOMS+GARAGE+LONGITUDE+LATITUDE, data=train, method="class")
+perth.tree
+summary(perth.tree)
+plot(perth.tree)
+text(perth.tree, pretty=0)
+
+pred3 <- predict(perth.tree, newdata=test, type="class")
+table(pred3, as.factor(ifelse(test$PRICE>=mean(test$PRICE), "high", "low")))
+acc3 <- mean(pred3 == factor(ifelse(test$PRICE>=mean(test$PRICE), "high", "low")))
+
+print(paste("DT accuracy = ", acc3))
+```
+
+As expected, the accuracy is a little bit lower at 83.3%.
+
+What is interesting to note, is that the tree function deemed all of the primary room counts as irrelevant predictors. This is most likely because FLOOR_AREA is already highly correlated to the number of primary rooms in the house, making it redundant. However depending on the LONGITUDE and LATITUDE, different FLOOR_AREAs result in prices above or below average. This makes sense logically because different neighborhoods will cost more or less to live in.
+
+## Results
+
+The models from most to least accurate for this data was:
+
+-   kNN
+-   Decision Tree
+-   Logistic Regression
+
+Logistic was not very good for this dataset mostly because of its high bias. As shown in the Decision Tree, two of the most important predictors was LONGITUDE and LATITUDE and it wasn't a linear relationship for the classification.
+
+Decision Tree was only a little bit less accurate than kNN and is still pretty good for this dataset. Even though it was less accurate than kNN, it gave a bit more insight as to what were important factors for price.
+
+kNN was the most accurate and very good for the dataset, however it definitely took more work to make it accurate. Splicing and Normalizing the data were important components that **had** to be done in order to get a higher accuracy.
