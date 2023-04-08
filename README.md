@@ -20,3 +20,7 @@ In this project I created two C++ files recreating some regression functions man
 ## [Project 4](Component4/):
 
 This project was a group project where we each created a notebook in R to show the power of different models using R. My [notebook](Component4/Part%202.Rmd) was based on different classification models such as Logistic Regression (previously explored), K-Nearest Neighbors, and Decision Trees. The used csv file is also included as well as a pdf version of the notebook.
+
+## [Project 5](Component5/):
+
+This project was a first look into using python for ML. I created a [notebook](Component5/Portfolio_5.ipynb) using python to explore the power of different models. The used csv file is also included as well as a pdf version of the notebook.
