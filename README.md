@@ -24,3 +24,7 @@ This project was a group project where we each created a notebook in R to show t
 ## [Project 5](Component5/):
 
 This project was a first look into using python for ML. I created a [notebook](Component5/Portfolio_5.ipynb) using python to explore the power of different models. The used csv file is also included as well as a pdf version of the notebook.
+
+## [Project 6](Component6/):
+
+This project was comparing different models that can be used for image classification. I created a [notebook](Component6/Portfolio_6.ipynb) to check different models like regualar Sequential, Convolutional Neural Networks, and Transfer Learning. The images used are also included and can be found on [kaggle](https://www.kaggle.com/datasets/gpiosenka/cards-image-datasetclassification/code?resource=download). There is also a pdf version of the notebook included.
