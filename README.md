@@ -28,3 +28,7 @@ This project was a first look into using python for ML. I created a [notebook](C
 ## [Project 6](Component6/):
 
 This project was comparing different models that can be used for image classification. I created a [notebook](Component6/Portfolio_6.ipynb) to check different models like regualar Sequential, Convolutional Neural Networks, and Transfer Learning. The images used are also included and can be found on [kaggle](https://www.kaggle.com/datasets/gpiosenka/cards-image-datasetclassification/code?resource=download). There is also a pdf version of the notebook included.
+
+## Summary:
+
+This class and the projects above helped me learn important concepts in machine learning such as Regression, Classification, and Neural Networks. I also learned a new language (R) and a few libraries for Python such as Tensorflow, Keras, Numpy, and Pandas. I hope to continue being able to use these skills for future projects. One idea I want to pursue later is making an opponent AI for a game using a neural network. I think it would be interesting to have an opponent that will adapt as more games are played against it.
